@@ -1,0 +1,5 @@
+---
+- hosts: webhosting
+  remote_user: ansible
+  roles:
+    - traefik

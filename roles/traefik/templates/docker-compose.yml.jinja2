@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  traefik:
+    image: "traefik:{{ traefik_image_tag }}"
+    restart: "always"
+    container_name: "traefik"
+    command:
+      - "--api=true"
+      - "--api.dashboard=true"
+      - "--log.level=ERROR"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=web"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+{% if 'domains' in traefik %}
+{% for domain in traefik.domains %}
+      - "--certificatesresolvers.{{ domain.handle }}.acme.httpchallenge=true"
+      - "--certificatesresolvers.{{ domain.handle }}.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.{{ domain.handle }}.acme.email=admin@{{ domain.fqdn }}"
+      - "--certificatesresolvers.{{ domain.handle }}.acme.storage=/letsencrypt/acme.json"
+{% endfor %}
+{% endif %}
+    ports:
+       - "80:80"
+       - "443:443"
+    volumes:
+      - "./letsencrypt:/letsencrypt"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    labels:
+      - "traefik.enable=true"
+{% if 'dashboard' in traefik %}
+      - "traefik.http.routers.api.rule=Host(`{{ traefik.dashboard.fqdn }}`)"
+      - "traefik.http.routers.api.service=api@internal"
+      - "traefik.http.routers.api.middlewares=auth"
+      - "traefik.http.middlewares.auth.basicauth.users={{ traefik_dashboard_basicauth }}"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.tls.certresolver={{ traefik.dashboard.domain_handle }}"
+{% endif %}
+    networks:
+      - "web"
+networks:
+  web:
+    external: true

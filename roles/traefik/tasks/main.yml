@@ -1,0 +1,38 @@
+- name: Create a network
+  community.docker.docker_network:
+    name: web
+
+- name: Check if traefik docker-compose file exists
+  become: True
+  stat:
+    path: /srv/traefik/docker-compose.yml
+  register: stat_result
+
+- name: Stop traefik docker-compose service if file exists
+  community.docker.docker_compose:
+    project_src: /srv/traefik
+    state: absent
+  when: stat_result.stat.exists
+
+- name: Create directory for traefik
+  become: True
+  file:
+    path: /srv/traefik
+    state: directory
+
+- name: Create directory for traefik - letsencrypt
+  become: True
+  file:
+    path: /srv/traefik/letsencrypt
+    state: directory
+
+- name: Template docker-compose file
+  become: True
+  ansible.builtin.template:
+    src: docker-compose.yml.jinja2
+    dest: /srv/traefik/docker-compose.yml
+
+- name: Create and start traefik service
+  community.docker.docker_compose:
+    project_src: /srv/traefik
+  register: output

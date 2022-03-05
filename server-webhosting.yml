@@ -1,0 +1,9 @@
+---
+- hosts: webhosting
+  remote_user: ansible
+  roles:
+    - updates_and_packages
+    - docker
+    - role: gantsign.oh-my-zsh
+      users:
+        - username: ansible
